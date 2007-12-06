@@ -1,0 +1,147 @@
+Quick installation:
+
+FriCAS now tries to support standard GNU build/installation 
+conventions.  So if you have sources and all prerequisities
+just:
+
+configure && make && make install
+
+should work. The above will install FriCAS files in
+/usr/local/lib/axiom directory and put axiom command in
+/usr/local/bin directory, you can give arguments to configure
+to change those locations.
+
+NOTE!! If you use svn (minimal version) the above will install broken
+HyperDoc pages -- all graphic examples will be missing (and trying to access
+them will crash hypertex).
+
+The get working graphic examples long into X and replace 'make' above by
+the following:
+
+make
+cd src/paste
+make gphts
+cd ../..
+make
+
+Important: building graphic examples accesses the X server, so it will
+not work on text console.  During build drawings will temporarly
+appear on the screen.  Redirecting X via ssh should work fine,
+but may be slow.
+
+It is also possible to use xvfb-run program, replacing 'make gphts'
+above by:
+
+xvfb-run --server-args="-screen 0 1024x768x24" --auto-servernum -n 0 make gphts
+
+
+--------------------------------------------------------
+
+Prerequisities:
+
+- Lisp, one of:
+    * GCL, 2.6.7 or prerelease 2.6.8 
+    * sbcl, 1.0.7 or later
+    * clisp, 2.41 or later
+    * openmcl, 1.1 prerelase 070512
+  GCL currently is best tested and fully functional, sbcl and clisp is
+  fully functional but graphic support is very new, openmcl should work
+  for core FriCAS (no graphic or HyperDoc).
+  Gcl sources are included in full+gcl distribution tarball.
+
+- noweb literate programing tool (http://www.eecs.harvard.edu/~nr/noweb/).
+  Noweb sources are included in full distribution tarball.
+  
+- X libraries and headers (includig Xpm library).
+
+  On debian (or Ubuntu) you probably need: libx11-dev, libxt-dev, libice-dev,
+  libsm-dev, libxau-dev, libxdmcp-dev, libxpm-dev.
+
+- Extra libraries needed by gcl.  If you use Debian gcl you probably
+  need libreadline5-dev, libncurses5-dev, libgmp-dev, libxmu-dev and
+  libxaw7-dev.
+
+  On Gentoo system installed gcl probably will not work, one need to
+  build own one.
+
+--------------------------------------------------------
+
+Step by step instructions for first time users:
+
+Latest (developement) version of FriCAS is available only
+via svn, so you need svn client (see http://subversion.tigris.org/).
+
+0) Change to a directory with enough (1.2 GB) free space
+
+1) Fetch sources:
+
+svn co https://fricas.svn.sourceforge.net/svnroot/fricas/trunk fricas
+
+2) Fetch nonstandard prerequisities:
+
+cd fricas
+svn co https://axiom.svn.sourceforge.net/svnroot/axiom/branches/build-improvements/gcl gcl
+
+mkdir zips
+
+cd zips
+wget https://axiom.svn.sourceforge.net/svnroot/axiom/trunk/axiom/zips/noweb-2.10a.tgz
+
+2a) Go back to first directory
+cd ../..
+
+3) Create build directory and change to it:
+
+mkdir ax-build
+cd ax-build
+
+4) Configure.  Assuming that you want axiom files to be installed in
+/tmp/usr
+
+../fricas/configure --prefix=/tmp/usr
+
+5) Build and install:
+
+make
+make install
+
+If you want graphic examples read the note before.
+
+--------------------------------------------------------
+
+Extra information about installation:
+
+The preferred way to build FriCAS is to use already installed
+gcl and noweb.  Also, it is preferable to use a separate build
+directory.  Assuming that source tree is in fricas subdirectry
+and you build in ax-build subdirectry, the following should just
+work:
+
+cd ax-build
+../fricas/configure && make && make install
+
+If you have istalled gcl in some non-standard place (or you
+have multiple installations of gcl and you want to choose
+correct one) you can use the following:
+
+cd ax-build
+../fricas/configure --with-lisp=/path/to/gcl && make && make install
+
+Alternatively, you can just put gcl sources as a subdirectory
+(called gcl) of fricas directory -- in this case the build
+process should automatically build gcl and later use the freshly
+build gcl.
+
+Currently --with-lisp option accepts other lisp variants, namely
+sbcl, clisp and openmcl.  Build machinery must know which Lisp
+variant is in use. gcl, sbcl and clisp can be autodetected,
+for openmcl one has to give an extra argument --with-lisp-flavor=openmcl
+(you can also specify flavor for other Lisps, but this argument
+is required only for openmcl).  For openmcl you should also specify
+--with-x=no option (otherwise build will hang trying to generate HyperDoc
+pages)
+
+Openmcl has a bug in Lisp printer.  This bug causes incorrect printing
+of FriCAS types.  To work around the bug you may apply a patch
+'contib/omcl.diff' and recompile openmcl (see openmcl documentation
+for instructions).
