@@ -1,0 +1,119 @@
+\documentclass{article}
+\usepackage{axiom}
+\begin{document}
+\title{\$SPAD/src/input bug2008.input}
+\author{The Axiom Team}
+\maketitle
+\begin{abstract}
+\end{abstract}
+\eject
+\tableofcontents
+\eject
+@
+<<*>>=
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "bugs2009"
+
+testcase "zero testing for constants (issue #290)"
+
+testEquals("integrate((x^4*exp(2)*log(2*x)^2+(3*x^2+-2*x)*exp(x+2)*log(2*x)+(exp(2*x+2)+-1*x*exp(x+2)))/(x^4*log(2*x)^2+2*x^2*exp(x)*log(2*x)+exp(2*x)), x)", "(x^3*exp(2)^2*log(2*x)+(x+1)*exp(2)*exp(x+2))/(x^2*exp(2)*log(2*x)+exp(x+2))")
+
+testEquals("integrate(((x^2+-2*x)*exp(x+2)*log(2*x)+-1*x*exp(x+2))/(x^4*log(2*x)^2+2*x^2*exp(x)*log(2*x)+exp(2*x)), x)", "(exp(2)*exp(x+2))/(x^2*exp(2)*log(2*x)+exp(x+2))")
+
+testEquals("integrate(exp(x^2)*(exp(a)^2-exp(2*a)), x)", "0")
+testEquals("normalize(exp(4) - exp(2))", "exp(2)^2 - exp(2)")
+testEquals("normalize(exp(sqrt(5)) - exp(2)^sqrt(5))", "exp(sqrt(5)) - exp(sqrt(5))^2")
+testEquals("normalize(log(tan((1/2)*x+%pi/4))-asinh(tan(x)))", "0")
+testEquals("normalize(log((2*exp(3)+1)/sqrt(4*exp(6)+4*exp(3)+1)))", "0")
+testEquals("normalize(2*atan(exp(-3))-atan(-2*exp(-3)/(exp(-6)-1)))", "0")
+
+testEquals("normalize(log(4)^2-4*log(2)^2)", "0")
+ii := integrate(2^x/sqrt(1+4^x), x)
+testEquals("normalize(ii - asinh(2^x)/log(2))", "0") 
+
+testcase "asin complex(1.0,0) (issue #138)"
+testEquals("asin complex(1.0,0)", "pi()$Complex(Float)/2")
+
+testcase "atanh 1.0 (issue #437)"
+testLibraryError("atanh 1.0")
+
+testcase "defining recurrence and type of argument (#439)"
+first [1 for m in 1..2] - m
+
+testIntegrate(f: String, x: String, issue: String): Void ==
+    testcaseNoClear("integrate(" f ", " x ") (" issue ")")
+    testTrue("(res := integrate(" f ", " x "); true)")
+    testTrue("not is?(operator first kernels res, 'integral)")
+    testEquals("normalize(D(res, " x ") - (" f "))", "0")
+
+testIntegrate("sqrt(1+tan(x)^2)", "x", "#436")
+testIntegrate("1/(-3+v^3)*v/(-4+v^3)^(1/2)", "v", "#360")
+testIntegrate("log(1-z^3)*(%i*z)^(1/2)", "z", "#440")
+testIntegrate("csc(z)*(1-1/(%i*z)^(1/2))^(1/2)", "z", "#442")
+
+testIntegrate("asin(x/a)", "x", " ")
+
+testcase "not a valid isolation interval in integral (#441)"
+testTrue("(integrate(log(z-1)*z/(z^2-1)^2, z= 1..%plusInfinity); true)")
+
+testcase "index out of range in gcdDecomposition"
+i1 := 189145300198486602596774595069726915694703755579
+i2 := 119647849214981034640025582370842880808489196080633
+testTrue("(dc:=gcdDecomposition(vector([i1, i2]))$GcdBasis(Integer); true)")
+cb := dc.basis
+ct := dc.transform
+testTrue("(#cb = 3)::Boolean")
+testEquals("[gcd(cb(1), cb(2)), gcd(cb(2), cb(3)), gcd(cb(1), cb(3))]", "[1, 1, 1]")
+testEquals("reduce('*, [cb(i)^(ct(i, 1)) for i in 1..3]) - i1", "0")
+testEquals("reduce('*, [cb(i)^(ct(i, 2)) for i in 1..3]) - i2", "0")
+
+testcase "mapping as target type"
+testTrue("(f1 := _*$Float@((NonNegativeInteger,Float) -> Float); true)")
+testTrue("abs(f1(5, 2.0) - 10.0) < 1.0e-15")
+
+testcase "equality of nested products is random (#443)"
+f := operator 'f
+testTrue("every?(c+->c, [(product(product(f i, i=1..k), k=1..n) = product(product(f j, j=1..l), l=1..n)) for m in 0..30]::List Boolean)")
+
+testcase "crashes coercing power series (#122, #136)"
+a := series(sin(x))
+-- testTrue("(a + 1.0; true)")
+-- testTrue("(1.0 + a; true)")
+testTrue("(a*1.0; true)")
+testTrue("(1.0*a; true)")
+
+b := 1.0::UnivariatePuiseuxSeries(Expression Float,x,0.0)
+testTrue("(b + 1.0; true)")
+testTrue("(1.0 + b; true)")
+testTrue("(a + b; true)")
+testTrue("(b + a; true)")
+testTrue("(a*b; true)")
+testTrue("(b*a; true)")
+
+b:= a::UnivariatePuiseuxSeries(Expression Float,x,0.0)
+testTrue("(a + b; true)")
+testTrue("(b + a; true)")
+testTrue("(a*b; true)")
+testTrue("(b*a; true)")
+
+testcase "crash in seriesSolve"
+f := operator f
+de := x^2*f(x)^3*D(f(x), x, 4) - 16*f(x)^2*D(f(x), x)^2
+testLibraryError("seriesSolve(de, f, x = 0, [1, 0, 0, 0])")
+
+testcase "factoring in SAE -- SF/2521387"
+
+F := SAE(Fraction Integer, SUP(Fraction Integer), x^2-2)
+pol := x^2-9-4*generator()$F
+testEquals("#factors(factor(pol))", "2")
+
+)set output algebra on
+statistics()
+@
+\eject
+\begin{thebibliography}{99}
+\bibitem{1} nothing
+\end{thebibliography}
+\end{document}
