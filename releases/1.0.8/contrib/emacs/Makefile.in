@@ -1,0 +1,46 @@
+
+default: efricas fricas-cpl.el
+
+clean:
+	-rm efricas
+
+install_emacs_dir = @emacsdatadir@
+EMACSCMDS = \
+  (progn \
+    (server-start) \
+    (setq load-path (cons (quote \"${install_emacs_dir}\") load-path)) \
+    (setq auto-mode-alist \
+      (cons (quote (\"\\\\.fri\" . fricas-mode)) auto-mode-alist)) \
+    (require (quote fricas)))
+
+efricas: Makefile
+	echo "#!/bin/sh -" > $@
+	echo "AXIOMEDITOR='emacsclient +\$$line \$$name >/dev/null 2>&1'" >> $@
+	echo "export AXIOMEDITOR" >> $@
+	echo "FRICASCMD='$(libdir)/fricas/target/$(target)/bin/axiom'" >> $@
+	echo "export FRICASCMD" >> $@
+	echo "if which emacs; then" >> $@
+	echo "  emacs --eval '${EMACSCMDS}' -f fricas;" >> $@
+	echo "else " >> $@
+	echo "  echo You must have installed emacs to run efricas.;" >> $@
+	echo "fi" >> $@
+
+fricas-cpl.el: fricas-cpl.in ${srcdir}/fricas-cpl.hd ${srcdir}/fricas-cpl.tl
+	cat ${srcdir}/fricas-cpl.hd fricas-cpl.in ${srcdir}/fricas-cpl.tl > $@
+
+fricas-cpl.in: ${srcdir}/gen-cpl.lisp
+	echo ')read ${srcdir}/gen-cpl.lisp' | \
+            AXIOM=$(axiom_targetdir) DAASE=$(axiom_targetdir) \
+            $(axiom_target_bindir)/AXIOMsys
+
+###################################################################
+# We need libaxiom.al and the .o (runtime support) files in the lib
+# subdirectory.
+install: install-emacs
+
+# Destination directory for the algebra files and aldor libraries.
+install_target_dir = $(DESTDIR)$(install_emacs_dir)
+install-emacs:
+	$(INSTALL_DATA) ${srcdir}/fricas.el $(install_target_dir)/fricas.el
+	$(INSTALL_DATA) fricas-cpl.el $(install_target_dir)/fricas-cpl.el
+	$(INSTALL_SCRIPT) efricas '$(DESTDIR)$(bindir)/efricas'
