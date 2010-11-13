@@ -1,0 +1,325 @@
+Quick installation:
+
+FriCAS now tries to support standard GNU build/installation 
+conventions.  So if you have sources and all prerequisities
+just:
+
+configure && make && make install
+
+should work. The above will install FriCAS files in
+/usr/local/lib/fricas directory and put fricas command in
+/usr/local/bin directory, you can give arguments to configure
+to change those locations.
+
+NOTE!! If you use svn (minimal version) the above will install broken
+HyperDoc pages -- all graphic examples will be missing (and trying to access
+them will crash hypertex).
+
+The get working graphic examples login into X and replace 'make' above by
+the following:
+
+make
+cd src/paste
+make gphts
+cd ../..
+make
+
+Important: building graphic examples accesses the X server, so it will
+not work on text console.  During build drawings will temporarly
+appear on the screen.  Redirecting X via ssh should work fine,
+but may be slow.
+
+It is also possible to use xvfb-run program, replacing 'make gphts'
+above by:
+
+xvfb-run --server-args="-screen 0 1024x768x24" --auto-servernum -n 0 make gphts
+
+
+--------------------------------------------------------
+
+Prerequisities:
+
+- Lisp, one of:
+    * GCL, 2.6.7 or prerelease 2.6.8 
+    * sbcl, 1.0.7 or later, versions before 1.0.35 prefferred
+    * clisp, 2.41 or later
+    * Clozure CL (former openmcl), starting from openmcl 1.1 prerelease
+    070512
+    * ECL, 0.9l or later (we reccomend latest version)
+    * cmucl
+  All Lisp impementations should give essentially the same
+  functionality, however performance (speed) may differ quite a lot.
+  ATM CMU CL port should be considered experimental, it received only
+  little testing.  Also CMU CL seem to have problems on some machines.
+  By default FriCAS tries to use sbcl, since it is fast and reliable.
+  On 64-bit AMD64 on average sbcl is the fastest one (7 times faster
+  than clisp), Clozure CL the second (about 2.5 times slower than sbcl),
+  than gcl and ECL (about 3 times slower than sbcl) and clisp is the slowest
+  one.  Note: older versions of ECL were much (about 4 times) slower,
+  you should use newest version if you care about speed.
+
+  Some computation work much faster on 64-bit machines, especially
+  when using sbcl.
+
+- noweb literate programing tool (http://www.eecs.harvard.edu/~nr/noweb/).
+  Noweb sources are included in full distribution tarball.
+  
+- X libraries and headers (includig Xpm library).
+
+  On debian (or Ubuntu) you probably need: libx11-dev, libxt-dev, libice-dev,
+  libsm-dev, libxau-dev, libxdmcp-dev, libxpm-dev.
+
+- If using sbcl on 32/64 bit AMD/Intel processors '--with-gmp' option
+  it is available only if developement version of GMP is installed.
+
+- Extra libraries needed to have LaTeXed output (ASCII output works
+  fine without) in efricas.
+
+  On debian (or Ubuntu) you probably need: dvipng, auctex
+
+- Extra libraries needed by gcl.  If you use Debian gcl you probably
+  need libreadline5-dev, libncurses5-dev, libgmp3-dev, libxmu-dev and
+  libxaw7-dev.
+
+Known problems:
+
+- sbcl-1.0.29 has bug in 'directory' function which causes build
+  failure.  This problem is fixed in 1.0.29.54.rc1.
+
+- 1.0.29.54.rc1 has broken complex 'tanh' function -- you will get
+  wrong results when applying 'tanh' to Complex DoubleFloat.
+
+- in sbcl 1.0.35 and up Control-C handling does not work.  This
+  is under investigation, currently the workaround is to use
+  older sbcl versions.
+
+- Some Linux versions, notably Suze, by default seem to have very small
+  limit on virtual memory.  This causes build failure when using sbcl
+  or Closure CL.  Also if limit on virtual memory is too small
+  sbcl-based or Closure CL-based FriCAS binary will silently fail
+  at startup.  The simplest workaround is to increase limit,
+  in the shell typing
+
+    ulimit -v unlimited
+
+  Alternatively for sbcl one can use '--dynamic-space-size' argument
+  to decrease use of virtual memory.
+
+- gcl does not work on Intel Macs, and has serious problems on
+  PPC Macs and Windows.
+
+- On Gentoo system installed gcl probably will not work, one need to
+  build own one.
+
+- Older version of gcl are incompatible with Fedora "exec-shield" and
+  strong address space randomization (setting randomize_va_space to 2).
+  Newest CVS version of 2.6.8 branch of gcl fixes this problem.
+
+- gcl needs bfd library.  Many Linux systems include version of bfd
+  library which is incompatible with gcl.  In the past we avised to
+  use in such case the following configure line:
+  
+    ./configure --disable-xgcl --disable-dynsysbfd --disable-statsysbfd --enable-locbfd
+
+  Now this a defult setting if you build FriCAS+gcl together. 
+
+- Boehm garbage collector included in old ECL (version 6.8) is incompatible
+  with Fedora strong address space randomization (setting randomize_va_space
+  to 2).  Using newer version of Boehm garbage collector (7.0 or 7.1) or
+  newer ECL should solve this problem.
+
+- Striping FriCAS binaries is likely to break them.  In particular Clisp
+  based FriCAS may crash with message:
+
+    module 'syscalls' requires package OS.
+
+  while sbcl will show only loader prompt.
+
+- On Mac OSX Tiger some users reported problems with pseudoterminals,
+  build stoped with message:
+
+    fork_Axiom: Failed to reopen server: No such file or directory
+
+  This problem is believed to be fixed in FriCAS-1.0.5 (and later).
+
+- ECL 9.6.2 (and probably also 9.6.1 and 9.6.0) has a bug with
+  handling string constants which causes build based on this version
+  to fail.  This bugs is fixed in newer versions.
+  ECL 9.7.1 generates wrong C code, so that build fails.  This
+  is fixed in newer versions.
+
+- Unicode-enabled ECL before 9.8.4 is unable to build FriCAS.
+
+- ECL up to version 0.9l may segfault at exit.  This is usually harmless,
+  but may cause build to hang (for example when generating ug13.pht).
+  
+- In general, any error when generating documentation will cause build to hang.
+
+- Clozure CL earlier than release 1.2 (former Openmcl) has a bug in Lisp
+  printer.  This bug causes incorrect printing of FriCAS types.  Also,
+  Clozure CL earlier than release 1.2 has bug in complex
+  cosine function.  Those bugs are fixed in release 1.2.  If you want to
+  use earlier version you can work around the bugs applying
+  the 'contib/omcl.diff' patch and recompiling the compiler (see the patch
+  or Clozure CL documentation for instructions).
+
+
+--------------------------------------------------------
+
+Getting Lisp.
+
+To build FriCAS you need to install Lisp first.  You need
+_one_ of the following:
+
+- sbcl
+
+  http://sbcl.sourceforge.net/platform-table.html
+
+- Clozure CL
+
+  http://ccl.clozure.com/manual/chapter2.2.html#id357702
+  ftp://ftp.clozure.com/pub/release/1.2
+
+- ECL
+
+  http://ecls.sourceforge.net
+
+- gcl, older versions have various problems, CVS version is
+  better.  To get latest stable version from CVS use the
+  following command
+
+  cvs -d:pserver:anonymous@cvs.savannah.gnu.org:/cvsroot/gcl co -r Version_2_6_8pre -d gcl-2.6.8pre gcl
+
+  In case of build problems try the following configure line
+
+  ./configure --disable-xgcl --disable-dynsysbfd --disable-statsysbfd --enable-locbfd 
+
+- clisp
+
+  http://clisp.cons.org
+
+- cmucl
+
+--------------------------------------------------------
+
+Step by step instructions for first time users:
+
+Latest (developement) version of FriCAS is available only
+via svn, so you need svn client (see http://subversion.tigris.org/).
+
+You also need Lisp -- see links in section "Getting Lisp" and
+follow instructions.
+
+0) Change to a directory with enough (1.2 GB) free space
+
+1) Fetch sources:
+
+svn co https://fricas.svn.sourceforge.net/svnroot/fricas/trunk fricas
+
+2) Fetch nonstandard prerequisities:
+
+cd fricas
+
+mkdir zips
+
+cd zips
+wget http://axiom.svn.sourceforge.net/svnroot/axiom/trunk/axiom/zips/noweb-2.10a.tgz
+
+2a) Go back to first directory
+cd ../..
+
+3) Create build directory and change to it:
+
+mkdir ax-build
+cd ax-build
+
+4) Configure.  Assuming that you want fricas files to be installed in
+/tmp/usr
+
+../fricas/configure --with-lisp=/path/to/your/lisp --prefix=/tmp/usr
+
+where /path/to/your/lisp is name of your Lisp (for example sbcl)
+
+5) Build and install:
+
+make
+make install
+
+If you want graphic examples read the note before.
+
+-------------------------------------------------------
+
+Algebra optimization
+
+When writing/compiling programs there is always tradeoff
+between speed and safety.  Program may include many
+checks to detect errors early (and allow recowery),
+such progams are safe but checks take time so the program
+is slower.  Or program may just blindly go forward hoping
+that everything goes well.  Typically the second program
+will be faster, but in case of problems it may crash
+without any hint why and take user data with it.
+
+Safty checks may be written by programmer, but another
+possiblity is to have compiler which automatically inserts
+various checks.  FriCAS is compiled by Lisp compiler and
+Lisp compilers may insert safety checks.  How many checks
+are inserted may be controlled by the user.  By default
+FriCAS tries to strike good balance between speed and
+safety.  However, some FriCAS users want different
+tradeoff.  The '--with-algebra-optimization=S' option
+to configure allows changing this setting: S is a Lisp
+expression specifying speed/safety tradeoff used by
+Lisp compiler.  For example:
+
+--with-algebra-optimization="((speed 3) (safety 0))"
+
+chooses fastest (but unsafe) variant, while
+
+--with-algebra-optimization="((speed 2) (safety 3))"
+
+should be very safe (but possibly slow).
+
+Note: this setting affects only algebra (that is mathematical
+code).  The rest of FriCAS always uses default setting.
+Rationale for this is that mathematical code is unlikely to
+contain errors which can crash the whole system.
+
+--------------------------------------------------------
+
+Using GMP with sbcl.
+
+Currently on average FriCAS is fastest when compiled using sbcl.
+However, sbcl normally uses its own routines for computations
+with large numbers and those routines are slower than GMP.
+FriCAS on 32/64 bit AMD/Intel processors now has special
+support to replace sbcl arithmetic routines by GMP.  To use
+this support install GMP including header files (developement
+package if you install via a package manager).  Currently there
+are two avaliable versions, version 5 is much fater than version 4.
+Then configure FriCAS adding '--with-gmp' option to the 'configure'
+arguments.
+
+--------------------------------------------------------
+
+Extra information about installation:
+
+The preferred way to build FriCAS is to use already installed
+Lisp and noweb.  Also, it is preferable to use a separate build
+directory.  Assuming that source tree is in fricas subdirectory,
+you build in ax-build subdirectory and your Lisp is called sbcl
+the following should just work:
+
+cd ax-build
+../fricas/configure --with-lisp=sbcl && make && make install
+
+Alternatively, if you use gcl you can just put gcl sources as a
+subdirectory (called gcl) of fricas directory -- in this case the build
+process should automatically build gcl and later use the freshly
+build gcl.
+
+Currently --with-lisp option accepts all supported lisp variants, namely
+sbcl, clisp, ecl, gcl and Clozure CL (openmcl).  Note: the argument
+is just command to invoke choosen Lisp.  Build machinery will
+automatically detect which Lisp is in use and adjust as needed.
+
