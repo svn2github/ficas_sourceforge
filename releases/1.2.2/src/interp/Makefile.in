@@ -1,0 +1,226 @@
+
+subdir = src/interp/
+
+DOC=$(fricas_target_docdir)/src/interp
+
+fricas_debug_compiler=@fricas_debug_compiler@
+
+# Command to translate Boot to Common Lisp
+BOOT_TO_LISP = $(fricas_build_helper) \
+	       --translate_boot --debug=$(fricas_debug_compiler) \
+	       --use=$(BOOTSYS) --output=$@ $<
+
+# Command to translate Common Lisp to native object code
+COMPILE_LISP = $(fricas_build_helper) \
+	       --compile_lisp --debug=$(fricas_debug_compiler) \
+	       --use=$(LOADSYS) --output=$@ $<
+
+AUTO=$(fricas_targetdir)/autoload
+
+BOOTSYS= $(fricas_build_bindir)/bootsys
+
+LOADSYS= $(fricas_build_bindir)/lisp$(EXEEXT)
+SAVESYS= $(fricas_build_bindir)/interpsys$(EXEEXT)
+AXIOMSYS= $(fricas_target_bindir)/AXIOMsys$(EXEEXT)
+
+OBJ_files= vmlisp macros setq \
+	alql buildom cattable clam clammed \
+	compat compress cparse cstream database \
+	dq format g-boot g-cndata g-error g-opt \
+	g-timer	g-util hypertex i-analy \
+	i-code i-coerce	i-coerfn i-eval i-funsel i-intern \
+	i-map i-output i-resolv	i-spec1 i-spec2 i-syscmd \
+	i-toplev i-util incl int-top lisplib macex match \
+	msg msgdb newfort nlib nrunfast \
+	nrungo nrunopt pathname pf2sex pile \
+	posit property ptrees record rulesets scan \
+	serror server setvars sfsfun simpbool slam \
+	spad termrw trace \
+	daase fortcall ncomp parsing \
+	parse postpar s-parser scwrap2 spaderror
+
+OBJS= $(patsubst %, %.$(LISPOBJEXT), $(OBJ_files))
+
+INOBJ_files= setvart interop
+
+INOBJS= $(patsubst %, %.$(LISPOBJEXT), $(INOBJ_files))
+
+OCOBJ_files= apply c-doc c-util profile category compiler \
+	define functor info iterator modemap nruncomp \
+	package	htcheck
+
+OCOBJS= $(patsubst %, ${AUTO}/%.$(LISPOBJEXT), $(OCOBJ_files))
+
+BROBJ_files= bc-matrix bc-misc bc-solve bc-util ht-util htsetvar \
+	ht-root br-con br-data showimp br-op1 br-op2 \
+	br-search br-util br-prof br-saturn
+
+BROBJS= $(patsubst %, ${AUTO}/%.$(LISPOBJEXT), $(BROBJ_files))
+
+ASCOMP_files= hashcode as foam_l
+
+ASCOMP= $(patsubst %, %.$(LISPOBJEXT), $(ASCOMP_files))
+
+ASAUTO= ${AUTO}/ax.$(LISPOBJEXT)
+
+
+.PRECIOUS:	${SAVESYS}
+.PRECIOUS:	${AXIOMSYS}
+
+PROCLAIMS=(progn (load "$(srcdir)/interp-proclaims.lisp"))
+
+.SUFFIXES:
+.SUFFIXES: .boot .clisp .lisp .pamphlet
+
+.PHONY: all all-ax all-interpsys all-axiomsys
+
+all: all-ax
+
+all-ax: stamp
+	@echo finished $(srcdir)
+
+stamp:  remove-stamp build-images
+	$(STAMP) stamp
+
+.PHONY: remove-stamp
+remove-stamp:
+	-rm -f stamp
+
+.PHONY: build-images
+build-images: remove-stamp all-interpsys
+
+all-interpsys: $(SAVESYS)
+
+clean:
+	@echo 619 cleaning $(builddir)
+
+.PRECIOUS: %.clisp
+%.clisp: $(srcdir)/%.boot
+	$(BOOT_TO_LISP)
+
+.PRECIOUS: %.$(LISPOBJEXT)
+%.$(LISPOBJEXT): %.clisp
+	$(COMPILE_LISP)
+
+# Compile the part of the interpreter written in Common Lisp
+.PRECIOUS: %.lisp
+%.$(LISPOBJEXT): $(srcdir)/%.lisp
+	$(COMPILE_LISP)
+
+mostlyclean-local:
+	rm -f *.fn *.data *.lib *.$(LISPOBJEXT)
+
+clean-local: mostlyclean-local
+	rm -f *.clisp \
+	  makedep.lisp makedep2.lisp makedep2.lst makeint.lisp \
+	  exposed.lsp database.date
+
+distclean-local: clean-local
+
+${SAVESYS} ${AXIOMSYS}: makeint.lisp \
+    ${OBJS}  util.$(LISPOBJEXT) \
+    ${OCOBJS} ${BROBJS} \
+    database.date ${INOBJS} ${ASCOMP} ${ASAUTO} \
+    ${NAGBROBJS} \
+    ${LOADSYS} \
+    $(fricas_targetdir)/algebra/exposed.$(FASLEXT) \
+    $(fricas_src_datadir)/doc/msgs/s2-us.msgs
+
+makeint.lisp: ../boot/lobj_lst
+	@ echo 5 invoking make in `pwd` with parms:
+	@ echo SRC= $(fricas_src_srcdir)
+	@ echo BYE=${BYE}
+	cp $(fricas_src_datadir)/doc/msgs/s2-us.msgs \
+		 $(fricas_target_datadir)/msgs/s2-us.msgs
+	@ echo '${PROCLAIMS}' > makeint.lisp
+	echo '(load #-:ecl "util" #+:ecl "$(srcdir)/util.lisp")' >> makeint.lisp
+	@ echo '(in-package "BOOT")' >> makeint.lisp
+	@ echo '(progn (setq boot::|$$build_date|    "${BUILD_DATE}")' \
+	       '       (setq boot::|$$build_version| "${VERSION}"))' \
+	     >> makeint.lisp
+	echo '#+:ecl(setf fricas-lisp::*fricas-initial-lisp-objects*' \
+             '(append fricas-lisp::*fricas-initial-lisp-objects*' \
+             ' (quote (' >> makeint.lisp
+	cat ../boot/lobj_lst >> makeint.lisp
+	echo '))))' >> makeint.lisp
+	echo '(build-interpsys' \
+	  '(quote ($(patsubst %, "%", ${OBJS} ${ASCOMP} ${INOBJS} )))' \
+	  '(quote ())' \
+	  '(quote ($(patsubst %, "$(BASE)%", ${OCOBJS})))' \
+	  '(quote ($(patsubst %, "$(BASE)%", ${BROBJS})))' \
+	  '(quote ($(patsubst %, "$(BASE)%", ${ASAUTO})))' \
+	  '"${AXIOM}")' >> makeint.lisp
+	@ echo '(in-package "BOOT")' >> makeint.lisp
+	echo '#-:ecl(|clearClams|)' >> makeint.lisp
+	@ echo '#+:GCL (setq compiler::*suppress-compiler-notes* t)' >> makeint.lisp
+	@ echo '#+:GCL (si::gbc-time 0)' >> makeint.lisp
+
+${SAVESYS}:
+	echo '(load "makeint.lisp") #-:ecl(BOOT::reclaim)' \
+             '#+:ecl(FRICAS-LISP::make-program "$(BASE)$@" nil)' \
+             '#-:ecl(BOOT::spad-save "$(BASE)$@" t)' | \
+           DAASE='$(fricas_src_datadir)' ${BOOTSYS}
+	ls $@
+	@ echo 6 ${SAVESYS} created
+
+.PHONY: all-axiomsys
+
+all-axiomsys: ${AXIOMSYS}
+
+${AXIOMSYS}: ../etc/stamp-databases
+	echo '(defparameter FRICAS-LISP::*building-axiomsys* t)' \
+	   '(load "makeint.lisp") #-:ecl(BOOT::reclaim)' \
+	   '#+:cmu (setf (ext:search-list "libspad:")' \
+	   '(list "${AXIOM}/lib/" "${libdir}/fricas/target/${target}/lib/"))' \
+	   '#+:cmu (setq ext:*top-level-auto-declare* t)' \
+	   '#+:cmu (setq *compile-verbose* nil)' \
+	   '#+:cmu (setq *compile-print* nil)' \
+	   '#+:cmu (declaim (optimize (ext:inhibit-warnings 3)))' \
+	   '#+:ecl(FRICAS-LISP::make-program "$(BASE)$@" nil)' \
+	   '#-:ecl(BOOT::spad-save "$(BASE)$@" t)' \
+             | DAASE="$(BASE)$(fricas_targetdir)" ${BOOTSYS}
+	@ echo 6a ${AXIOMSYS} created
+exposed.lsp: $(fricas_src_algdir)/exposed.lsp.pamphlet
+	@ echo 615 making $@ from $<
+	$(axiom_build_document) --tangle --output=$@ $<
+
+$(fricas_targetdir)/algebra/exposed.$(FASLEXT) : exposed.lsp
+	@ echo 616 making $@ from exposed.lsp
+	echo '(progn  (compile-file "exposed.lsp" :output-file' \
+	      ' "$(BASE)$(fricas_targetdir)/algebra/exposed.$(FASLEXT)") (${BYE}))' \
+		| ${LOADSYS}
+
+database.date:
+	@ echo 617 the database was updated...remaking interpsys
+	touch database.date
+
+IN_from_MID=\
+ as buildom cattable compat compress \
+ database format fortcall g-cndata g-error g-opt \
+ g-timer hashcode hypertex \
+ i-analy i-code i-coerce i-coerfn i-eval i-funsel \
+ i-intern interop i-map i-output i-resolv i-spec1 i-spec2 \
+ i-syscmd i-toplev i-util lisplib match msgdb \
+ newfort nrunfast nrungo nrunopt pathname \
+ record rulesets server setvars setvart simpbool \
+ termrw trace
+
+$(addsuffix .$(LISPOBJEXT), $(IN_from_MID) clammed): \
+    %.$(LISPOBJEXT) : %.clisp
+	@ echo 10 making $@ from $<
+	$(COMPILE_LISP)
+
+AUTO_from_MID=\
+ apply ax bc-matrix bc-misc bc-solve bc-util br-con br-data br-op1 \
+ br-op2 br-prof br-saturn br-search br-util category c-doc \
+ compiler c-util define functor htcheck ht-root htsetvar ht-util \
+ info iterator modemap nruncomp package profile
+
+$(patsubst %, $(AUTO)/%.$(LISPOBJEXT), $(AUTO_from_MID) showimp): \
+    $(AUTO)/%.$(LISPOBJEXT) : %.clisp
+	@ echo 10 making $@ from $<
+	$(COMPILE_LISP)
+
+clammed.clisp: $(srcdir)/clammed.boot
+	echo '(progn (boottran::bootclam "$<" "$@") (${BYE}))' | ${BOOTSYS}
+
