@@ -1,0 +1,48 @@
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "series"
+
+testcase "formal derivatives"
+
+f := operator 'f
+g := operator 'g
+h := operator 'h
+e1 := f(x)*g(x)
+ss := series(e1, x = a);
+c1_3 := (f(a)*D(g(a),a, 3)+g(a)*D(f(a),a, 3)+3*D(f(a),a)*D(g(a),a,2) _
+  +3*D(g(a),a)*D(f(a),a, 2))/6
+testEquals("coefficient(ss, 3)", "c1_3")
+
+e2 := f(g(x))
+ss := series(e2, x = a);
+c2_3 := (eval(D(f(x), x), x = g(a))*D(g(a),a, 3) + _
+   D(g(a),a)^3*eval(D(f(x), x, 3), x = g(a)) + _
+   3*D(g(a),a)*eval(D(f(x), x, 2), x = g(a))*D(g(a),a,2))/6
+testEquals("coefficient(ss, 3)", "c2_3")
+
+e3 := h(x, x^2)
+ss := series(e3, x = a);
+hyy := eval(D(h(a, y), y, 2), y = a^2)
+hy  := eval(D(h(a, y), y), y = a^2)
+hxx := eval(D(h(x, a^2), x, 2), x = a)
+hxy := eval(D(h(x, y), [x, y]), [x = a, y = a^2])
+c3_2 := (4*a^2*hyy + 4*a*hxy + hxx + 2*hy)/2
+testEquals("coefficient(ss, 2) - c3_2", "0")
+
+testcase "prodiag"
+
+l1 := [1, 1, 1, 2, 2, 3, 4, 5, 6, 8, 10];
+sI := Stream(Integer)
+sT := StreamTaylorSeriesOperations(Integer)
+s1 : sI := concat(1, empty()$sI);
+ss1 := repeating([s1]);
+testEquals("entries(complete(first(prodiag(ss1)$sT, 11)))", "l1")
+
+l2 := [1, -1, 0, -2, -1, -4, -2, -5, -1, -4, 3];
+s2 := repeating([1])$sI
+ms2 := repeating([-1])$sI
+ss2 := repeating([ms2, s2]);
+testEquals("entries(complete(first(prodiag(ss2)$sT, 11)))", "l2")
+
+statistics()
