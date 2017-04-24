@@ -1,0 +1,123 @@
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "bugs2017"
+
+testcase "latex(1)"
+
+testEquals("latex(1)", "_"1_"")
+
+testcase "~= in interpreter"
+
+testTrue("(x~=y)$Expression(Integer)")
+
+testcase "simplification of embedded roots"
+
+testEquals("rootSimp(sqrt(2 * sqrt(a^4)))", "a*sqrt(2)")
+
+testEquals("rootSimp(exp(x/sqrt(x^2)-1))", "1")
+
+testEquals("rootPower(atan(2*(x^(1/6))^3))", "atan(2*sqrt(x))")
+
+testEquals("rootPower(exp(x^(1/6)*(x^(1/12))^2))", "exp(x^(1/3))")
+
+testEquals("rootPower(sqrt((x^(1/6))^3 + 1))", "sqrt(sqrt(x) + 1)")
+
+testEquals("rootPower(exp(sqrt(x)/(x^(1/6))^3 - 1))", "1")
+
+testEquals("rootPower(sqrt(sqrt(x)/(x^(1/6))^3 - 1))", "0")
+
+testEquals("rootProduct(sin((x^(1/4))^2*x^(1/5)))", "sin(x^(7/10))")
+
+testcase "linear algebra with empty matrices"
+
+emi := empty()$Matrix(Integer)
+qF := Fraction(Integer)
+emq := empty()$Matrix(qF)
+
+testEquals("determinant(emi)", "1")
+testEquals("determinant(emq)", "1")
+testEquals("minordet(emi)", "1")
+testEquals("minordet(emq)", "1")
+testEquals("inverse(emi)", "emq")
+testEquals("inverse(emq)", "emq")
+testEquals("invertIfCan(emi)", "emi")
+ai := adjoint(emi)
+testEquals("ai.adjMat", "emi")
+testEquals("ai.detMat", "1")
+aq := adjoint(emq)
+testEquals("aq.adjMat", "emq")
+testEquals("aq.detMat", "1")
+vQF := Vector(qF)
+iMF := InnerMatrixLinearAlgebraFunctions(qF, vQF, vQF, Matrix(qF))
+testEquals("generalizedInverse(emq)$iMF", "emq")
+
+testcase "determinant of zero matrix"
+
+testEquals("determinant(zero(2,2)$Matrix(POLY PF 2))", "0")
+
+testcase "simplifyExp and expand of logarithm"
+
+testEquals("simplifyExp(exp(exp(a)*exp(b)))", "exp(exp(a+b))")
+testEquals("simplifyExp(d^(c^a*c^b))", "d^(c^(a+b))")
+testEquals("simplifyExp(exp(a)/exp(b))", "exp(a-b)")
+testEquals("simplifyExp(a^b/a^c)", "a^(b-c)")
+testEquals("simplifyExp(exp((exp(a)+1)/exp(b))*exp(-(2*exp(a)+1)/exp(b)))",
+           "exp(-exp(a-b))")
+testEquals("expand(log(a*b)^c)", "(log(b)+log(a))^c")
+
+testcase "simplification with variable named exp and log"
+
+expr := exp::Expression Integer
+testEquals("simplify(expr)", "expr")
+testEquals("htrigs(expr)", "expr")
+testEquals("simplifyLog(log)", "log")
+
+testcase "simplifyLog"
+
+a := log((-2*sqrt(2)+3)^2)-2*log((-2*sqrt(2)+3));
+testEquals("simplifyLog(a)", "0")
+testEquals("simplifyLog(exp(a + 1))", "exp(1)")
+testEquals("simplifyLog(sin(a + 1))", "sin(1)")
+testEquals("simplifyLog(exp(log(x)+log(y)))", "x*y")
+
+testcase "0^0 for polynomials"
+
+testEquals("(0::SUP(INT))^0", "1")
+testEquals("(0::DMP([x, y, z], INT))^0", "1")
+
+testcase "conjugate"
+
+testEquals("conjugate(sin(x)) - sin(conjugate(x))", "0")
+testEquals("conjugate(exp(conjugate(x)))", "exp(x)")
+
+testcase "derivatives of box and paren"
+
+xp := paren(x + 1)
+xb := box(x + 1)
+testEquals("D(xp^100, x)", "100*xp^99")
+testEquals("D(xb^100, x)", "100*xb^99")
+
+testcase "monomial?"
+
+testTrue("monomial?((x*y)::POLY(INT))")
+testTrue("monomial?(1::POLY(INT))")
+testTrue("not(monomial?(0::POLY(INT)))")
+
+testcase "symmetric and antisymmetric tensors"
+
+m1 := matrix([[1, 0], [0, 0], [0, 1]])
+m2 := matrix([[1, 0, 0], [0, 0, 1]])
+am1 := antisymmetricTensors(m1, 2)
+am2 := antisymmetricTensors(m2, 2)
+testEquals("am2*am1", "matrix[[1]]")
+sm1 := symmetricTensors(m1, 2)
+sm2 := symmetricTensors(m2, 2)
+testEquals("sm2*sm1", "symmetricTensors(m2*m1, 2)")
+
+testcase "node? from URAGG"
+
+testTrue("not(node?([],[])$List(Integer))")
+
+)set output algebra on
+statistics()
