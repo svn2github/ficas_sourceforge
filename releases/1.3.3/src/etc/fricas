@@ -1,0 +1,217 @@
+#!/bin/sh
+
+# Start everything for FriCAS.
+#
+# fricas
+#      [-ht   |-noht]       whether to use HyperDoc
+#      [-gr   |-nogr]       whether to use Graphics
+#      [-clef |-noclef]     whether to use Clef
+#      [-iw   |-noiw]       start in interpreter window
+#      [-ihere|-noihere]    start an interpreter buffer in the original window
+#      [-nox]               don't use X Windows
+#      [-go  |-nogo]        whether to start system
+#      [-ws wsname]         use named workspace
+#      [-list]              list workspaces only
+#      [-grprog fname]      use named program for Graphics
+#      [-htprog fname]      use named program for HyperDoc
+#      [-clefprog fname]    use named program for Clef
+#      [-sessionprog fname] use named program for session
+#      [-clientprog fname]  use named program for spadclient
+#      [-h]                 show usage
+#      [-eval code]         evaluate specified code at start
+#      [-texmacs]           setup FriCAS for communication in TeXmacs protocol
+#      [-emacs]             setup for emacs frontend
+#
+
+PATH=$AXIOM/bin:${PATH}:/usr/bin/X11
+export PATH
+
+# NAGMAN needs to know the hostname
+HOST=`hostname`
+export HOST
+
+# 0. Basic utilities
+
+ciao() {
+        echo "Goodbye."
+        exit 1
+}
+
+needsubopt () {
+        echo "The $1 option requires an argument."
+        ciao
+}
+
+
+showuse() {
+echo "fricas"
+echo "     [-nosman]            use plain command line interface (disables other options)"
+echo "     [-ht   |-noht]       whether to use HyperDoc"
+echo "     [-gr   |-nogr]       whether to use Graphics"
+echo "     [-clef |-noclef]     whether to use Clef"
+echo "     [-iw   |-noiw]       start in interpreter window"
+echo "     [-ihere|-noihere]    start an interpreter buffer in the original window."
+echo "     [-nox]               don't use X Windows"
+echo "     [-go  |-nogo]        whether to start system"
+echo "     [-ws wsname]         use named workspace"
+echo "     [-list]              list workspaces only"
+#echo "     [-grprog fname]      use named program for Graphics"
+#echo "     [-htprog fname]      use named program for HyperDoc"
+echo "     [-clefprog fname]    use named program for Clef"
+#echo "     [-sessionprog fname] use named program for session"
+#echo "     [-clientprog fname]  use named program for spadclient"
+echo "     [-h]                 show usage"
+echo "     [-eval code]         evaluate specified code at start"
+echo "     [-texmacs]           setup FriCAS for communication in TeXmacs protocol"
+echo "     [-emacs]             setup for emacs frontend"
+}
+
+# 1. Ensure the environment is set.
+
+# Just process '-h'
+
+if [ "$*" = "-h" ] ; then
+     showuse
+fi
+
+# The aldor compiler is usually expected to be in PATH at the time of
+# starting fricas, but, we allow for more flexibility.
+# 1) If ALDOR_COMPILER is set, it's assumed to be the absolute path
+#    to the aldor compiler executable.
+# 2) If there is a program ${exec_prefix}/bin/aldor, then this will
+#     be used.
+# 3) It's assumed that "aldor" is in PATH.
+if [ -z ${ALDOR_COMPILER} ]; then
+    if [ -x ${exec_prefix}/bin/aldor ]; then
+        ALDOR_COMPILER=${exec_prefix}/bin/aldor
+    else
+        ALDOR_COMPILER=aldor
+    fi
+fi
+export ALDOR_COMPILER
+
+if [ ! -d "$AXIOM" ] ; then
+  echo "The directory for FriCAS, $AXIOM, does not exist."
+  ciao
+fi
+
+# Name the workspace directories.
+rootwsdir=$AXIOM/bin
+
+# 2. Process command line arguments.
+algebra_off=')set output algebra off'
+texmacs_on=')set output texmacs on'
+markers=")lisp (setf |\$ioHook| (lambda (x &optional args) (cond ((eq x '|startPrompt|) (princ (concat (code-char 2) \"prompt\#\") ))  ((eq x '|endOfTeXmacsOutput|) (princ (concat (code-char 5) (code-char 10)))) ((eq x '|startTeXmacsOutput|) (princ (code-char 2)))  ((eq x '|startKeyedMsg|)  (princ (concat (code-char 2) \"verbatim:\")))  ((eq x '|endOfKeyedMsg|)  (princ (code-char 5)))  ((eq x '|endOfPrompt|) (princ (code-char 5) ))  )))"
+
+
+if [ "$*" = "-texmacs" ] ; then
+    exec "$AXIOM/bin/AXIOMsys" -- -eval "$algebra_off" -eval "$markers" -eval "$texmacs_on"
+fi
+
+# Start FriCAS from inside emacs. Discard output to stderr.
+if [ "$*" = "-emacs" ] ; then
+    eval "exec $AXIOM/bin/sman -noclef 2>/dev/null"
+fi
+
+if [ "$1" = "-nosman" ] ; then
+    shift
+    exec "$AXIOM/bin/AXIOMsys" "$@"
+    exit 1
+fi
+
+# Defaults for command-line arguments.
+list=no
+go=yes
+wsname=AXIOMsys
+
+otheropts=""
+
+if [ ! -f $AXIOM/lib/viewman ] ; then
+    echo "viewman not present, disabling graphics"
+    otheropts="-nogr"
+fi
+
+
+while [ "$*" != "" ] ; do
+
+        case $1 in
+        -list)  list=yes
+                go=no;;
+        -go)    go=yes ;;
+        -nogo)  go=no ;;
+
+        -ws)
+                if [ "$2" = "" ] ; then needsubopt "$1" ; fi
+                shift
+                wsname="$1"
+                ;;
+
+        -grprog|-htprog|-clefprog|-sessionprog|-clientprog|-paste|-rm|-rv)
+                if [ "$2" = "" ] ; then needsubopt "$1" ; fi
+                otheropts="$otheropts  $1 $2"
+                shift
+                ;;
+        -clef|-noclef|-gr|-nogr|-ht|-noht|-iw|-noiw|-ihere|-noihere|-nox)
+                otheropts="$otheropts $1"
+                ;;
+
+        -h)
+                go=no
+                ;;
+
+        -eval)
+                shift
+                if [ -z "$*" ] ; then
+                    echo "Parameter -eval must be provided with a value"
+                    ciao
+                else
+                    patt='s,[^A-Za-z0-9],\\&,g'
+                    npar=`echo "$1" | sed $patt`
+                    otheropts="$otheropts -eval $npar"
+                fi
+                ;;
+
+        *)      echo "Unknown option: $1"
+                echo "To use a specific workspace use, e.g.: fricas -ws $1"
+                ciao
+                ;;
+        esac
+
+        shift
+done
+
+# 3. List the available workspaces, if asked
+
+listwspaces()
+{
+        echo "$1"
+        ls -l $2 | grep "sys$"
+        echo ""
+}
+
+if [ $list = yes ] ; then
+          listwspaces "FriCAS workspaces in \$AXIOM/bin = $rootwsdir: " $rootwsdir
+fi
+
+# 5. Try to ensure a suitable workspace on this host.
+
+if [ `expr $wsname : '.*/.*'` = 0 ] ; then
+        serverws=$rootwsdir/$wsname
+else
+        serverws=$wsname
+fi
+
+if [ ! -f $serverws ] ; then
+        showuse
+        ciao
+fi
+
+# 6. Start processes
+
+if [ $go = no ] ; then
+        echo "Would now start the processes."
+        echo "exec $AXIOM/bin/sman $otheropts -ws $serverws"
+        exit 0
+fi
+
+eval "exec $AXIOM/bin/sman $otheropts -ws $serverws"

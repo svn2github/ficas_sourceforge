@@ -1,0 +1,52 @@
+)set break resume
+)expose UnittestCount UnittestAux Unittest
+
+testsuite "bugs2018"
+
+testcase "leading coefficient in MULTSQFR"
+
+pol := ((a+c)^2*d + b)^4*(d - b)^2*((a - c)^8*d - b);
+
+flist := factors(squareFree(pol))
+
+testEquals("flist(1).factor", "d - b")
+testEquals("flist(1).exponent", "2")
+testEquals("flist(2).factor", "(a+c)^2*d + b")
+testEquals("flist(2).exponent", "4")
+
+testcase "simplify nested radicals in rootPower"
+
+testEquals("rootPower(sqrt sqrt 2)", "2^(1/4)")
+testEquals("rootPower(((sqrt 7)^(1/5))^4)", "7^(2/5)")
+
+testcase "'exquo' in FR"
+
+testTrue("(factor(5) exquo factor(3)) case _"failed_"")
+
+testcase "'construct' in MRING"
+
+T := MonoidRing(Integer, Integer)
+R := Record(k : Integer, c : Integer)
+testTrue("(s := construct([[2, 1]::R, [3, 2]::R])$T; true)")
+e1 := construct([[2, 1]::R])$T
+e2 := construct([[3, 2]::R])$T
+testEquals("e1 + e2", "s")
+
+testcase "'leaf?'"
+
+testTrue("not(leaf?([]))")
+testTrue("leaf?([1])")
+
+testcase "recursion in 'has'"
+
+E := DirectProduct(3, NNI)
+a1 := unitVector(1)$E
+testEquals("subtractIfCan(a1, a1)", "0")
+
+testcase "'^' for Factored"
+
+testEquals("factor(6)^0", "1")
+
+)set output algebra on
+
+statistics()
